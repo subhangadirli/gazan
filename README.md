@@ -26,19 +26,22 @@ A graphical frontend for [rclone](https://rclone.org/) built with GTK 4 and liba
 ## Requirements
 
 - Python 3.10+
-- GTK 4 and libadwaita (`python3-gi`, `gir1.2-gtk-4.0`, `gir1.2-adw-1`)
 - [rclone](https://rclone.org/install/) installed and available on `PATH`
+- GTK 4, libadwaita, and PyGObject — installed via your distro's package manager:
+
+| Distro | Command |
+|---|---|
+| Arch / Artix | `sudo pacman -S gtk4 libadwaita python-gobject` |
+| Debian / Ubuntu | `sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1` |
+| Fedora | `sudo dnf install python3-gobject gtk4 libadwaita` |
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://codeberg.org/subhagadirli/gazan
 cd gazan
-
-# Create a virtual environment and install
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -e .
 ```
 
