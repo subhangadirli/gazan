@@ -5,8 +5,8 @@ A graphical frontend for [rclone](https://rclone.org/) built with GTK 4 and liba
 ## Preview
 
 <p align="center">
-  <img src="./docs/preview-1.png" width="45%" />
-  <img src="./docs/preview-2.png" width="45%" />
+  <img src="https://codeberg.org/subhangadirli/gazan/media/branch/master/docs/preview-1.png" width="45%" />
+  <img src="https://codeberg.org/subhangadirli/gazan/media/branch/master/docs/preview-2.png" width="45%" />
 </p>
 
 ## Features
