@@ -81,7 +81,7 @@ class AddRemoteDialog(Adw.Dialog):
             margin_start=12,
             margin_end=12,
         )
-        icon = icons.provider_image(provider.icon_file, size=96)
+        icon = icons.provider_picture(provider.icon_file)
         label = Gtk.Label(
             label=provider.display_name,
             wrap=True,

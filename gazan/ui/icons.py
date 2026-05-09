@@ -26,3 +26,20 @@ def provider_image(icon_file: str | None, size: int = 48) -> Gtk.Widget:
     img = Gtk.Image.new_from_icon_name("network-server-symbolic")
     img.set_pixel_size(min(size, 48))
     return img
+
+
+def provider_picture(icon_file: str | None) -> Gtk.Widget:
+    if icon_file is not None:
+        path = _LOGOS_DIR / icon_file
+        if path.exists():
+            picture = Gtk.Picture.new_for_filename(str(path))
+            picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+            picture.set_vexpand(True)
+            picture.set_hexpand(True)
+            return picture
+
+    img = Gtk.Image.new_from_icon_name("network-server-symbolic")
+    img.set_pixel_size(48)
+    img.set_vexpand(True)
+    img.set_hexpand(True)
+    return img
