@@ -1,0 +1,23 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: docker
+    container:
+      image: python:3.12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          pip install build twine
+          python -m build
+
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: twine upload dist/*
