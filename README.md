@@ -27,13 +27,13 @@ A graphical frontend for [rclone](https://rclone.org/) built with GTK 4 and liba
 
 - Python 3.10+
 - [rclone](https://rclone.org/install/) installed and available on `PATH`
-- GTK 4, libadwaita, and PyGObject — installed via your distro's package manager:
+- GTK 4 and libadwaita — installed via your distro's package manager:
 
 | Distro | Command |
 |---|---|
-| Arch / Artix | `sudo pacman -S gtk4 libadwaita python-gobject` |
-| Debian / Ubuntu | `sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1` |
-| Fedora | `sudo dnf install python3-gobject gtk4 libadwaita` |
+| Arch / Artix | `sudo pacman -S gtk4 libadwaita` |
+| Debian / Ubuntu | `sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1` |
+| Fedora | `sudo dnf install gtk4 libadwaita` |
 
 ## Installation
 
@@ -48,27 +48,32 @@ pip install -e .
 ## Running
 
 ```bash
+gazan
+# or
 python -m gazan
 ```
 
 ## Project structure
 
 ```
-gazan/
-├── application.py       # GApplication subclass and entry point
-├── ui/
-│   ├── window.py        # Main application window
-│   ├── remotes_page.py  # Remotes list view
-│   ├── add_remote_dialog.py # Multi-step dialog for adding a remote
-│   └── icons.py         # Icon loading helpers
-├── backend/
-│   ├── providers.py     # Provider definitions and field schemas
-│   └── rclone.py        # rclone subprocess wrapper
-└── assets/
-    ├── gazan-logos/     # Application icons
-    └── provider-logos/  # Per-provider icons
+gazan/                       ← repo root
+├── gazan/                   ← Python package
+│   ├── application.py       # GApplication subclass and entry point
+│   ├── ui/
+│   │   ├── window.py        # Main application window
+│   │   ├── remotes_page.py  # Remotes list view
+│   │   ├── add_remote_dialog.py # Multi-step dialog for adding a remote
+│   │   └── icons.py         # Icon loading helpers
+│   ├── backend/
+│   │   ├── providers.py     # Provider definitions and field schemas
+│   │   └── rclone.py        # rclone subprocess wrapper
+│   └── assets/
+│       ├── gazan-logos/     # Application icons
+│       └── provider-logos/  # Per-provider icons
+└── pyproject.toml
+
 ```
 
 ## License
 
-Gazan is free software released under the [GNU General Public License v3](gazan/LICENSE).
+Gazan is free software released under the [GNU General Public License v3](LICENSE).
