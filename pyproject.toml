@@ -12,16 +12,37 @@ requires-python = ">=3.10"
 authors = [
     { name = "Subhan Gadirli", email = "subhagadirli@protonmail.com" },
 ]
+keywords = ["rclone", "gtk4", "gnome", "cloud", "libadwaita", "files"]
 dependencies = [
     "PyGObject",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment :: File Managers",
+    "Topic :: Internet :: File Transfer Protocol (FTP)",
 ]
 
 [project.scripts]
 gazan = "gazan.application:main"
 
 [project.urls]
-Repository = "https://codeberg.org/subhagadirli/gazan"
+Repository = "https://codeberg.org/subhangadirli/gazan"
+"Bug Tracker" = "https://codeberg.org/subhangadirli/gazan/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["gazan*"]
+
+[tool.setuptools.package-data]
+gazan = [
+    "assets/gazan-logos/*",
+    "assets/provider-logos/*",
+]
