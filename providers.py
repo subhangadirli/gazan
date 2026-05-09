@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
 
-DEFAULT_PROVIDER_ICON = "folder-remote-symbolic"
-
 
 @dataclass
 class ProviderField:
@@ -17,7 +15,7 @@ class ProviderField:
 class Provider:
     rclone_type: str
     display_name: str
-    icon_name: str
+    icon_file: str | None        # filename in assets/provider-logos/, or None
     auth_kind: str
     fields: list[ProviderField] = field(default_factory=list)
 
@@ -26,25 +24,25 @@ PROVIDERS: list[Provider] = [
     Provider(
         rclone_type="drive",
         display_name="Google Drive",
-        icon_name="gazan-provider-drive",
+        icon_file="google-drive.svg",
         auth_kind="oauth",
     ),
     Provider(
         rclone_type="dropbox",
         display_name="Dropbox",
-        icon_name="gazan-provider-dropbox",
+        icon_file="dropbox.svg",
         auth_kind="oauth",
     ),
     Provider(
         rclone_type="onedrive",
         display_name="OneDrive",
-        icon_name="gazan-provider-onedrive",
+        icon_file="microsoft-onedrive.svg",
         auth_kind="oauth",
     ),
     Provider(
         rclone_type="protondrive",
         display_name="Proton Drive",
-        icon_name="gazan-provider-protondrive",
+        icon_file="proton-drive.svg",
         auth_kind="credentials",
         fields=[
             ProviderField("username", "Email", "text", placeholder="you@proton.me"),
@@ -54,7 +52,7 @@ PROVIDERS: list[Provider] = [
     Provider(
         rclone_type="s3",
         display_name="Amazon S3",
-        icon_name="gazan-provider-s3",
+        icon_file="amazon-s3.svg",
         auth_kind="credentials",
         fields=[
             ProviderField(
@@ -77,7 +75,7 @@ PROVIDERS: list[Provider] = [
     Provider(
         rclone_type="b2",
         display_name="Backblaze B2",
-        icon_name="gazan-provider-b2",
+        icon_file="backblaze-svgrepo-com.svg",
         auth_kind="credentials",
         fields=[
             ProviderField("account", "Key ID", "text"),
@@ -87,7 +85,7 @@ PROVIDERS: list[Provider] = [
     Provider(
         rclone_type="sftp",
         display_name="SFTP",
-        icon_name="gazan-provider-sftp",
+        icon_file=None,
         auth_kind="credentials",
         fields=[
             ProviderField("host", "Host", "text", placeholder="example.com"),
@@ -99,7 +97,7 @@ PROVIDERS: list[Provider] = [
     Provider(
         rclone_type="webdav",
         display_name="WebDAV",
-        icon_name="gazan-provider-webdav",
+        icon_file="webdav.png",
         auth_kind="credentials",
         fields=[
             ProviderField("url", "Server URL", "text", placeholder="https://..."),
@@ -119,8 +117,8 @@ PROVIDERS: list[Provider] = [
 ]
 
 
-def provider_icon(rclone_type: str) -> str:
+def find_provider(rclone_type: str) -> Provider | None:
     for p in PROVIDERS:
         if p.rclone_type == rclone_type:
-            return p.icon_name
-    return DEFAULT_PROVIDER_ICON
+            return p
+    return None

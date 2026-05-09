@@ -8,7 +8,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
-from gazan import rclone  # noqa: E402
+from gazan import icons, rclone  # noqa: E402
 from gazan.providers import PROVIDERS, Provider, ProviderField  # noqa: E402
 
 
@@ -80,8 +80,7 @@ class AddRemoteDialog(Adw.Dialog):
             margin_start=12,
             margin_end=12,
         )
-        icon = Gtk.Image.new_from_icon_name(provider.icon_name)
-        icon.set_pixel_size(48)
+        icon = icons.provider_image(provider.icon_file, size=96)
         label = Gtk.Label(
             label=provider.display_name,
             wrap=True,

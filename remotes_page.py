@@ -8,8 +8,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
-from gazan import rclone  # noqa: E402
-from gazan.providers import provider_icon  # noqa: E402
+from gazan import icons, rclone  # noqa: E402
+from gazan.providers import find_provider  # noqa: E402
 
 
 class RemotesPage(Gtk.Box):
@@ -106,8 +106,8 @@ class RemotesPage(Gtk.Box):
 
         for remote in remotes:
             row = Adw.ActionRow(title=remote["name"], subtitle=remote["type"])
-            icon = Gtk.Image.new_from_icon_name(provider_icon(remote["type"]))
-            icon.set_pixel_size(32)
+            p = find_provider(remote["type"])
+            icon = icons.provider_image(p.icon_file if p else None, size=32)
             row.add_prefix(icon)
             self._list_group.add(row)
             self._rows.append(row)
