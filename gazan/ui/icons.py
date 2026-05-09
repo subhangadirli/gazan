@@ -7,7 +7,7 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Gdk, GdkPixbuf, Gtk  # noqa: E402
 
-_LOGOS_DIR = Path(__file__).parent / "assets" / "provider-logos"
+_LOGOS_DIR = Path(__file__).parent.parent / "assets" / "provider-logos"
 
 
 def provider_image(icon_file: str | None, size: int = 48) -> Gtk.Widget:

@@ -1,4 +1,4 @@
-from gazan.main import main
+from gazan.application import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

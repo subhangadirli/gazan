@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gazan"
+version = "0.1.0"
+description = "A graphical frontend for rclone built with GTK 4 and libadwaita"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.10"
+authors = [
+    { name = "Subhan Gadirli", email = "subhagadirli@protonmail.com" },
+]
+dependencies = [
+    "PyGObject",
+]
+
+[project.scripts]
+gazan = "gazan.application:main"
+
+[project.urls]
+Repository = "https://codeberg.org/subhagadirli/gazan"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gazan*"]
