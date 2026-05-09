@@ -2,6 +2,13 @@
 
 A graphical frontend for [rclone](https://rclone.org/) built with GTK 4 and libadwaita. Gazan lets you manage your cloud storage connections through a clean, native GNOME-style interface — no terminal required for supported providers.
 
+## Preview
+
+<p align="center">
+  <img src="./docs/preview-1.png" width="45%" />
+  <img src="./docs/preview-2.png" width="45%" />
+</p>
+
 ## Features
 
 - View all configured rclone remotes at a glance
