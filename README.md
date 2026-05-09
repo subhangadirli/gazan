@@ -52,13 +52,15 @@ python -m gazan
 
 ```
 gazan/
-├── main.py              # Application entry point (GApplication)
-├── window.py            # Main application window
-├── remotes_page.py      # Remotes list view
-├── add_remote_dialog.py # Multi-step dialog for adding a remote
-├── providers.py         # Provider definitions and field schemas
-├── rclone.py            # rclone subprocess wrapper
-├── icons.py             # Icon loading helpers
+├── application.py       # GApplication subclass and entry point
+├── ui/
+│   ├── window.py        # Main application window
+│   ├── remotes_page.py  # Remotes list view
+│   ├── add_remote_dialog.py # Multi-step dialog for adding a remote
+│   └── icons.py         # Icon loading helpers
+├── backend/
+│   ├── providers.py     # Provider definitions and field schemas
+│   └── rclone.py        # rclone subprocess wrapper
 └── assets/
     ├── gazan-logos/     # Application icons
     └── provider-logos/  # Per-provider icons

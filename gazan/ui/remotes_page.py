@@ -8,8 +8,9 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
-from gazan import icons, rclone  # noqa: E402
-from gazan.providers import find_provider  # noqa: E402
+from gazan.ui import icons  # noqa: E402
+from gazan.backend import rclone  # noqa: E402
+from gazan.backend.providers import find_provider  # noqa: E402
 
 
 class RemotesPage(Gtk.Box):

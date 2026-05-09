@@ -5,8 +5,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gtk  # noqa: E402
 
-from gazan.add_remote_dialog import AddRemoteDialog  # noqa: E402
-from gazan.remotes_page import RemotesPage  # noqa: E402
+from gazan.ui.add_remote_dialog import AddRemoteDialog  # noqa: E402
+from gazan.ui.remotes_page import RemotesPage  # noqa: E402
 
 
 class GazanWindow(Adw.ApplicationWindow):
