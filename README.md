@@ -38,7 +38,7 @@ A graphical frontend for [rclone](https://rclone.org/) built with GTK 4 and liba
 ## Installation
 
 ```bash
-git clone https://codeberg.org/subhagadirli/gazan
+git clone https://codeberg.org/subhangadirli/gazan.git
 cd gazan
 python -m venv venv
 source venv/bin/activate
