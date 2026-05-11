@@ -44,4 +44,8 @@ include = ["gazan*"]
 gazan = [
     "assets/gazan-logos/*",
     "assets/provider-logos/*",
+    "assets/hicolor/scalable/apps/*",
+    "assets/hicolor/128x128/apps/*",
+    "assets/hicolor/256x256/apps/*",
+    "assets/hicolor/512x512/apps/*",
 ]
