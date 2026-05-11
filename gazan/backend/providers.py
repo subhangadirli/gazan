@@ -22,18 +22,6 @@ class Provider:
 
 PROVIDERS: list[Provider] = [
     Provider(
-        rclone_type="webdav",
-        display_name="Nextcloud",
-        icon_file="nextcloud.svg",
-        auth_kind="credentials",
-        fields=[
-            ProviderField("url", "Server URL", "text", placeholder="https://your.nextcloud.instance/remote.php/webdav"),
-            ProviderField("vendor", "Server type", "choice", choices=[("nextcloud", "Nextcloud")]),
-            ProviderField("user", "Username", "text"),
-            ProviderField("pass", "Password", "password"),
-        ],
-    ),
-    Provider(
         rclone_type="protondrive",
         display_name="Proton Drive",
         icon_file="proton-drive.svg",
@@ -95,18 +83,6 @@ PROVIDERS: list[Provider] = [
         ],
     ),
     Provider(
-        rclone_type="sftp",
-        display_name="SFTP",
-        icon_file=None,
-        auth_kind="credentials",
-        fields=[
-            ProviderField("host", "Host", "text", placeholder="example.com"),
-            ProviderField("user", "Username", "text"),
-            ProviderField("pass", "Password", "password"),
-            ProviderField("port", "Port", "text", required=False, placeholder="22"),
-        ],
-    ),
-    Provider(
         rclone_type="webdav",
         display_name="WebDAV",
         icon_file="webdav.png",
@@ -160,6 +136,18 @@ PROVIDERS: list[Provider] = [
             ProviderField("vendor", "Server type", "choice", choices=[("sharepoint", "SharePoint")]),
             ProviderField("user", "Username", "text"),
             ProviderField("pass", "Password", "password"),
+        ],
+    ),
+    Provider(
+        rclone_type="sftp",
+        display_name="SFTP",
+        icon_file=None,
+        auth_kind="credentials",
+        fields=[
+            ProviderField("host", "Host", "text", placeholder="example.com"),
+            ProviderField("user", "Username", "text"),
+            ProviderField("pass", "Password", "password"),
+            ProviderField("port", "Port", "text", required=False, placeholder="22"),
         ],
     ),
 ]
