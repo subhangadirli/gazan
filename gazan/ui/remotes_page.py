@@ -15,6 +15,24 @@ from gazan.backend import rclone  # noqa: E402
 from gazan.backend.providers import find_provider  # noqa: E402
 
 
+def _format_bytes(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if abs(n) < 1024 or unit == "TB":
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return str(n)
+
+
+def _format_usage(info: dict) -> str:
+    used = info.get("used")
+    total = info.get("total")
+    if used is None:
+        return ""
+    if total:
+        return f"{_format_bytes(used)} / {_format_bytes(total)}"
+    return f"{_format_bytes(used)} used"
+
+
 class RemotesPage(Gtk.Box):
     def __init__(
         self,
@@ -127,6 +145,8 @@ class RemotesPage(Gtk.Box):
             self._rows.append(row)
 
         self._stack.set_visible_child_name("list")
+        for remote in remotes:
+            self._fetch_usage(remote["name"])
         return False
 
     def _clear_rows(self) -> None:
@@ -138,10 +158,11 @@ class RemotesPage(Gtk.Box):
         name = remote["name"]
         is_mounted = name in self._mount_dirs
 
-        # Mount status badge
-        badge = Gtk.Label(label="Mounted")
+        # Mount status icon (shown when mounted)
+        badge = Gtk.Image(icon_name="emblem-ok-symbolic")
         badge.add_css_class("success")
-        badge.add_css_class("caption")
+        badge.set_tooltip_text("Mounted")
+        badge.set_pixel_size(16)
         badge.set_margin_end(4)
         badge.set_visible(is_mounted)
 
@@ -163,12 +184,7 @@ class RemotesPage(Gtk.Box):
         unmount_button.set_visible(is_mounted)
         unmount_button.connect("clicked", lambda _b: self._open_unmount_dialog(remote))
 
-        sync_button = Gtk.Button(icon_name="emblem-synchronizing-symbolic")
-        sync_button.set_tooltip_text("Sync")
-        sync_button.add_css_class("flat")
-        sync_button.connect("clicked", lambda _b: self._open_sync_dialog(remote))
-
-        # ⋮ menu with Edit and Delete
+        # ⋮ menu with Sync, Edit and Delete
         popover = Gtk.Popover()
         popover.set_has_arrow(False)
         menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -176,6 +192,10 @@ class RemotesPage(Gtk.Box):
         menu_box.set_margin_bottom(4)
         menu_box.set_margin_start(4)
         menu_box.set_margin_end(4)
+
+        sync_btn = Gtk.Button(label="Sync")
+        sync_btn.add_css_class("flat")
+        sync_btn.connect("clicked", lambda _b: (popover.popdown(), self._open_sync_dialog(remote)))
 
         edit_btn = Gtk.Button(label="Edit")
         edit_btn.add_css_class("flat")
@@ -185,6 +205,7 @@ class RemotesPage(Gtk.Box):
         delete_btn.add_css_class("destructive-action")
         delete_btn.connect("clicked", lambda _b: (popover.popdown(), self._confirm_delete(remote)))
 
+        menu_box.append(sync_btn)
         menu_box.append(edit_btn)
         menu_box.append(delete_btn)
         popover.set_child(menu_box)
@@ -197,18 +218,36 @@ class RemotesPage(Gtk.Box):
         more_button.add_css_class("flat")
 
         self._row_widgets[name] = {
+            "row": row,
             "badge": badge,
             "mount_btn": mount_button,
             "unmount_btn": unmount_button,
             "open_btn": open_button,
+            "rtype": remote["type"],
         }
 
         row.add_suffix(badge)
-        row.add_suffix(sync_button)
         row.add_suffix(unmount_button)
         row.add_suffix(mount_button)
         row.add_suffix(open_button)
         row.add_suffix(more_button)
+
+    def _fetch_usage(self, name: str) -> None:
+        def worker() -> None:
+            info = rclone.get_remote_about(name)
+            GLib.idle_add(self._on_usage_ready, name, info)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_usage_ready(self, name: str, info: dict | None) -> bool:
+        widgets = self._row_widgets.get(name)
+        if widgets is None or info is None:
+            return False
+        usage = _format_usage(info)
+        rtype = widgets["rtype"]
+        subtitle = f"{rtype} · {usage}" if usage else rtype
+        widgets["row"].set_subtitle(subtitle)
+        return False
 
     def _update_row_state(self, name: str, is_mounted: bool) -> None:
         widgets = self._row_widgets.get(name)

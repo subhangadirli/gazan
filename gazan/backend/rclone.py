@@ -111,6 +111,17 @@ def update_remote(name: str, params: dict[str, str]) -> None:
         raise RcloneError(result.stderr.strip() or "rclone returned a non-zero exit code")
 
 
+def get_remote_about(name: str) -> dict | None:
+    import json
+    result = _run([RCLONE_BIN, "about", f"{name}:", "--json"])
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
 def list_active_mounts() -> dict[str, str]:
     mounts: dict[str, str] = {}
     try:
