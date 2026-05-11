@@ -25,7 +25,7 @@ PROVIDERS: list[Provider] = [
         rclone_type="drive",
         display_name="Google Drive",
         icon_file="google-drive.svg",
-        auth_kind="oauth",
+        auth_kind="terminal",
     ),
     Provider(
         rclone_type="dropbox",

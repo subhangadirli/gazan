@@ -29,7 +29,10 @@ class AddRemoteDialog(Adw.Dialog):
         self._selected_provider: Provider | None = None
         self._field_widgets: dict[str, Gtk.Widget] = {}
         self._field_values: dict[str, str] = {}
+        self._oauth_token: str | None = None
         self._closed = False
+        self._oauth_status_label: Gtk.Label | None = None
+        self._oauth_button: Gtk.Button | None = None
 
         self._nav = Adw.NavigationView()
         self.set_child(self._nav)
@@ -96,25 +99,114 @@ class AddRemoteDialog(Adw.Dialog):
     def _on_provider_selected(self, _button: Gtk.Button, provider: Provider) -> None:
         self._selected_provider = provider
         if provider.auth_kind == "oauth":
-            self._nav.push(self._build_oauth_unsupported_page(provider))
+            self._nav.push(self._build_oauth_page(provider))
+            self._start_oauth_setup(provider)
         else:
             self._nav.push(self._build_credentials_page(provider))
 
-    def _build_oauth_unsupported_page(self, provider: Provider) -> Adw.NavigationPage:
+    def _build_oauth_page(self, provider: Provider) -> Adw.NavigationPage:
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
 
-        status = Adw.StatusPage(
-            icon_name="dialog-information-symbolic",
-            title=f"Set up {provider.display_name} from a terminal",
-            description=(
-                "Browser sign-in isn’t available in Gazan yet. "
-                "Run <tt>rclone config</tt> in a terminal to add this provider — "
-                "it will appear in Gazan once configured."
-            ),
+        title = f"Connect {provider.display_name}"
+        description = (
+            "Gazan will open your browser for sign-in and finish the setup automatically."
         )
-        toolbar.set_content(status)
+
+        status = Adw.StatusPage(
+            icon_name="network-server-symbolic",
+            title=title,
+            description=description,
+        )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box.append(status)
+
+        self._oauth_status_label = Gtk.Label(
+            label="Waiting for the browser sign-in to finish…",
+            wrap=True,
+            justify=Gtk.Justification.CENTER,
+        )
+        self._oauth_status_label.add_css_class("dim-label")
+        self._oauth_status_label.set_margin_top(12)
+        self._oauth_status_label.set_margin_start(24)
+        self._oauth_status_label.set_margin_end(24)
+        box.append(self._oauth_status_label)
+
+        retry_button = Gtk.Button(label="Try again")
+        retry_button.add_css_class("pill")
+        retry_button.connect("clicked", lambda _b: self._start_oauth_setup(provider))
+        retry_button.set_halign(Gtk.Align.CENTER)
+        self._oauth_button = retry_button
+        box.append(retry_button)
+
+        spinner = Gtk.Spinner(spinning=True)
+        spinner.set_size_request(32, 32)
+        spinner.set_halign(Gtk.Align.CENTER)
+        box.append(spinner)
+
+        clamp = Adw.Clamp(maximum_size=520)
+        clamp.set_child(box)
+        toolbar.set_content(clamp)
         return Adw.NavigationPage(child=toolbar, title=provider.display_name)
+
+    def _start_oauth_setup(self, provider: Provider) -> None:
+        assert provider.auth_kind == "oauth"
+        self._oauth_token = None
+        if self._oauth_status_label is not None:
+            self._oauth_status_label.set_text(
+                f"Opening the browser for {provider.display_name}…"
+            )
+        if self._oauth_button is not None:
+            self._oauth_button.set_sensitive(False)
+
+        def worker() -> None:
+            try:
+                token = rclone.authorize_remote(provider.rclone_type)
+                error: str | None = None
+            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                token = ""
+                error = str(e)
+            GLib.idle_add(self._on_oauth_ready, provider, token, error)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        def worker() -> None:
+            try:
+                token = rclone.exchange_google_drive_code(code)
+                error: str | None = None
+            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                token = ""
+                error = str(e)
+            GLib.idle_add(self._on_oauth_ready, self._selected_provider, token, error)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_oauth_ready(
+        self,
+        provider: Provider | None,
+        token: str,
+        error: str | None,
+    ) -> bool:
+        if self._closed:
+            return False
+        if error is not None:
+            if self._oauth_status_label is not None:
+                self._oauth_status_label.set_text(error)
+            if self._oauth_button is not None:
+                self._oauth_button.set_sensitive(True)
+            self._show_error("Couldn’t connect cloud storage", error)
+            return False
+
+        self._oauth_token = token
+        if self._oauth_status_label is not None and provider is not None:
+            self._oauth_status_label.set_text(
+                f"{provider.display_name} is connected. Choose a name next."
+            )
+        if self._oauth_button is not None:
+            self._oauth_button.set_sensitive(True)
+        self._nav.push(self._build_name_page())
+        return False
 
     def _build_credentials_page(self, provider: Provider) -> Adw.NavigationPage:
         toolbar = Adw.ToolbarView()
@@ -252,6 +344,9 @@ class AddRemoteDialog(Adw.Dialog):
         provider = self._selected_provider
         params = dict(self._field_values)
         assert provider is not None
+        if provider.auth_kind == "oauth":
+            assert self._oauth_token is not None
+            params["token"] = self._oauth_token
 
         def worker() -> None:
             try:
