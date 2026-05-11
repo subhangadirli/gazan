@@ -31,6 +31,7 @@ class GazanWindow(Adw.ApplicationWindow):
 
         self._remotes_page = RemotesPage(
             on_add_remote_requested=self._open_add_remote_dialog,
+            on_status_message=self._show_status,
         )
         toolbar_view.set_content(self._remotes_page)
 
@@ -45,3 +46,6 @@ class GazanWindow(Adw.ApplicationWindow):
     def _on_remote_added(self, name: str) -> None:
         self._toast_overlay.add_toast(Adw.Toast(title=f"Added {name}"))
         self._remotes_page.refresh()
+
+    def _show_status(self, message: str) -> None:
+        self._toast_overlay.add_toast(Adw.Toast(title=message))
