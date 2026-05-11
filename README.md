@@ -97,6 +97,10 @@ gazan/                         ← repo root
 └── pyproject.toml
 ```
 
+## Code of Conduct
+
+This project follows the [GNOME Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 Gazan is free software released under the [GNU General Public License v3](LICENSE).
