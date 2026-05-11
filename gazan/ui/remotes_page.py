@@ -9,6 +9,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
+_APP_ID = "io.codeberg.subhagadirli.Gazan"
+
 from gazan.ui import icons  # noqa: E402
 from gazan.ui.edit_remote_dialog import EditRemoteDialog  # noqa: E402
 from gazan.ui.transfer_panel import TransferPanel  # noqa: E402
@@ -337,6 +339,7 @@ class RemotesPage(Gtk.Box):
     def _on_mount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
         if error is not None:
             self._on_status_message(f"Mount failed: {error}")
+            self._send_notification("Mount failed", f'"{remote_name}": {error}', error=True)
             return False
         self._mount_dirs[remote_name] = mount_dir
         self._update_row_state(remote_name, is_mounted=True)
@@ -491,12 +494,27 @@ class RemotesPage(Gtk.Box):
         )
         self._transfer_panel.start(remote_name, direction, proc)
 
+    def _send_notification(self, title: str, body: str, error: bool = False) -> None:
+        app = Gio.Application.get_default()
+        if app is None:
+            return
+        notif = Gio.Notification.new(title)
+        notif.set_body(body)
+        notif.set_priority(
+            Gio.NotificationPriority.URGENT if error else Gio.NotificationPriority.NORMAL
+        )
+        app.send_notification(None, notif)
+
     def _on_sync_done(self, remote_name: str, error: str | None) -> bool:
         self._transfer_panel.finish(error)
         if error is None:
             self._on_status_message(f"Sync complete: {remote_name}")
+            self._send_notification(
+                "Sync complete", f'"{remote_name}" synced successfully'
+            )
         else:
             self._on_status_message(f"Sync failed: {error}")
+            self._send_notification("Sync failed", f'"{remote_name}": {error}', error=True)
         return False
 
     # ── edit ─────────────────────────────────────────────────────────────────
