@@ -86,6 +86,31 @@ def sync_from_remote(remote_name: str, local_dir: str, remote_path: str = "") ->
     _run_checked([RCLONE_BIN, "sync", src, dst])
 
 
+def delete_remote(name: str) -> None:
+    _run_checked([RCLONE_BIN, "config", "delete", name])
+
+
+def get_remote_config(name: str) -> dict[str, str]:
+    import json
+    result = _run([RCLONE_BIN, "config", "dump"])
+    if result.returncode != 0:
+        return {}
+    try:
+        return json.loads(result.stdout).get(name, {})
+    except (json.JSONDecodeError, KeyError):
+        return {}
+
+
+def update_remote(name: str, params: dict[str, str]) -> None:
+    args = [RCLONE_BIN, "config", "update", name, "--obscure"]
+    for key, value in params.items():
+        if value:
+            args += [key, value]
+    result = _run(args)
+    if result.returncode != 0:
+        raise RcloneError(result.stderr.strip() or "rclone returned a non-zero exit code")
+
+
 def list_active_mounts() -> dict[str, str]:
     mounts: dict[str, str] = {}
     try:

@@ -10,6 +10,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from gazan.ui import icons  # noqa: E402
+from gazan.ui.edit_remote_dialog import EditRemoteDialog  # noqa: E402
 from gazan.backend import rclone  # noqa: E402
 from gazan.backend.providers import find_provider  # noqa: E402
 
@@ -27,6 +28,8 @@ class RemotesPage(Gtk.Box):
         self._remotes: list[dict] = []
         self._rows: list[Adw.ActionRow] = []
         self._mount_dirs: dict[str, str] = {}
+        # per-row widget refs for live state updates
+        self._row_widgets: dict[str, dict] = {}
 
         self._stack = Gtk.Stack()
         self._stack.set_vexpand(True)
@@ -81,7 +84,7 @@ class RemotesPage(Gtk.Box):
             title="rclone not found",
             description=(
                 "Gazan needs the rclone command-line tool. "
-                "Install it from your distribution’s package manager."
+                "Install it from your distribution's package manager."
             ),
         )
 
@@ -107,6 +110,7 @@ class RemotesPage(Gtk.Box):
             return False
 
         self._remotes = remotes
+        self._row_widgets.clear()
         self._clear_rows()
 
         if not remotes:
@@ -131,19 +135,32 @@ class RemotesPage(Gtk.Box):
         self._rows.clear()
 
     def _add_row_actions(self, row: Adw.ActionRow, remote: dict) -> None:
+        name = remote["name"]
+        is_mounted = name in self._mount_dirs
+
+        # Mount status badge
+        badge = Gtk.Label(label="Mounted")
+        badge.add_css_class("success")
+        badge.add_css_class("caption")
+        badge.set_margin_end(4)
+        badge.set_visible(is_mounted)
+
         open_button = Gtk.Button(icon_name="folder-open-symbolic")
         open_button.set_tooltip_text("Open mounted folder")
         open_button.add_css_class("flat")
-        open_button.connect("clicked", lambda _b: self._open_mounted_folder(remote["name"]))
+        open_button.set_visible(is_mounted)
+        open_button.connect("clicked", lambda _b: self._open_mounted_folder(name))
 
         mount_button = Gtk.Button(icon_name="drive-harddisk-symbolic")
         mount_button.set_tooltip_text("Mount")
         mount_button.add_css_class("flat")
+        mount_button.set_visible(not is_mounted)
         mount_button.connect("clicked", lambda _b: self._open_mount_dialog(remote))
 
         unmount_button = Gtk.Button(icon_name="media-eject-symbolic")
         unmount_button.set_tooltip_text("Unmount")
         unmount_button.add_css_class("flat")
+        unmount_button.set_visible(is_mounted)
         unmount_button.connect("clicked", lambda _b: self._open_unmount_dialog(remote))
 
         sync_button = Gtk.Button(icon_name="emblem-synchronizing-symbolic")
@@ -151,10 +168,58 @@ class RemotesPage(Gtk.Box):
         sync_button.add_css_class("flat")
         sync_button.connect("clicked", lambda _b: self._open_sync_dialog(remote))
 
+        # ⋮ menu with Edit and Delete
+        popover = Gtk.Popover()
+        popover.set_has_arrow(False)
+        menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        menu_box.set_margin_top(4)
+        menu_box.set_margin_bottom(4)
+        menu_box.set_margin_start(4)
+        menu_box.set_margin_end(4)
+
+        edit_btn = Gtk.Button(label="Edit")
+        edit_btn.add_css_class("flat")
+        edit_btn.connect("clicked", lambda _b: (popover.popdown(), self._open_edit_dialog(remote)))
+
+        delete_btn = Gtk.Button(label="Delete")
+        delete_btn.add_css_class("destructive-action")
+        delete_btn.connect("clicked", lambda _b: (popover.popdown(), self._confirm_delete(remote)))
+
+        menu_box.append(edit_btn)
+        menu_box.append(delete_btn)
+        popover.set_child(menu_box)
+
+        more_button = Gtk.MenuButton(
+            icon_name="view-more-symbolic",
+            tooltip_text="More actions",
+            popover=popover,
+        )
+        more_button.add_css_class("flat")
+
+        self._row_widgets[name] = {
+            "badge": badge,
+            "mount_btn": mount_button,
+            "unmount_btn": unmount_button,
+            "open_btn": open_button,
+        }
+
+        row.add_suffix(badge)
         row.add_suffix(sync_button)
         row.add_suffix(unmount_button)
         row.add_suffix(mount_button)
         row.add_suffix(open_button)
+        row.add_suffix(more_button)
+
+    def _update_row_state(self, name: str, is_mounted: bool) -> None:
+        widgets = self._row_widgets.get(name)
+        if widgets is None:
+            return
+        widgets["badge"].set_visible(is_mounted)
+        widgets["mount_btn"].set_visible(not is_mounted)
+        widgets["unmount_btn"].set_visible(is_mounted)
+        widgets["open_btn"].set_visible(is_mounted)
+
+    # ── open mounted folder ──────────────────────────────────────────────────
 
     def _open_mounted_folder(self, remote_name: str) -> None:
         mount_dir = self._mount_dirs.get(remote_name)
@@ -167,7 +232,6 @@ class RemotesPage(Gtk.Box):
         if not path.exists():
             self._on_status_message(f"Mount folder not found: {path}")
             return
-
         try:
             Gio.AppInfo.launch_default_for_uri(path.resolve().as_uri(), None)
         except GLib.Error as e:
@@ -176,6 +240,8 @@ class RemotesPage(Gtk.Box):
     def _default_mount_dir(self, remote_name: str) -> str:
         safe_name = remote_name.replace("/", "-")
         return str(Path("~/Cloud").expanduser() / safe_name)
+
+    # ── mount ────────────────────────────────────────────────────────────────
 
     def _open_mount_dialog(self, remote: dict) -> None:
         dialog = Adw.Dialog()
@@ -207,6 +273,34 @@ class RemotesPage(Gtk.Box):
             lambda _b: self._run_mount(remote["name"], mount_dir.get_text().strip(), dialog),
         )
         dialog.present(self.get_root())
+
+    def _run_mount(self, remote_name: str, mount_dir: str, dialog: Adw.Dialog) -> None:
+        if not mount_dir:
+            self._on_status_message("Mount folder is required")
+            return
+        dialog.close()
+        self._on_status_message(f"Mounting {remote_name}…")
+
+        def worker() -> None:
+            try:
+                rclone.mount_remote(remote_name, mount_dir)
+                error: str | None = None
+            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                error = str(e)
+            GLib.idle_add(self._on_mount_done, remote_name, mount_dir, error)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_mount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
+        if error is not None:
+            self._on_status_message(f"Mount failed: {error}")
+            return False
+        self._mount_dirs[remote_name] = mount_dir
+        self._update_row_state(remote_name, is_mounted=True)
+        self._on_status_message(f"Mounted {remote_name} at {mount_dir}")
+        return False
+
+    # ── unmount ──────────────────────────────────────────────────────────────
 
     def _open_unmount_dialog(self, remote: dict) -> None:
         dialog = Adw.Dialog()
@@ -247,6 +341,34 @@ class RemotesPage(Gtk.Box):
         )
         dialog.present(self.get_root())
 
+    def _run_unmount(self, remote_name: str, mount_dir: str, dialog: Adw.Dialog) -> None:
+        if not mount_dir:
+            self._on_status_message("Mount folder is required")
+            return
+        dialog.close()
+        self._on_status_message("Unmounting…")
+
+        def worker() -> None:
+            try:
+                rclone.unmount_remote(mount_dir)
+                error: str | None = None
+            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                error = str(e)
+            GLib.idle_add(self._on_unmount_done, remote_name, mount_dir, error)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_unmount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
+        if error is not None:
+            self._on_status_message(f"Unmount failed: {error}")
+            return False
+        self._mount_dirs.pop(remote_name, None)
+        self._update_row_state(remote_name, is_mounted=False)
+        self._on_status_message(f"Unmounted {mount_dir}")
+        return False
+
+    # ── sync ─────────────────────────────────────────────────────────────────
+
     def _open_sync_dialog(self, remote: dict) -> None:
         dialog = Adw.Dialog()
         dialog.set_title(f"Sync {remote['name']}")
@@ -264,7 +386,7 @@ class RemotesPage(Gtk.Box):
             description="Choose direction and paths for this sync job.",
         )
         direction = Adw.ComboRow(title="Direction")
-        directions = Gtk.StringList.new(["Upload local -> cloud", "Download cloud -> local"])
+        directions = Gtk.StringList.new(["Upload local → cloud", "Download cloud → local"])
         direction.set_model(directions)
         direction.set_selected(0)
 
@@ -295,58 +417,6 @@ class RemotesPage(Gtk.Box):
         )
         dialog.present(self.get_root())
 
-    def _run_mount(self, remote_name: str, mount_dir: str, dialog: Adw.Dialog) -> None:
-        if not mount_dir:
-            self._on_status_message("Mount folder is required")
-            return
-        dialog.close()
-        self._on_status_message(f"Mounting {remote_name}...")
-
-        def worker() -> None:
-            try:
-                rclone.mount_remote(remote_name, mount_dir)
-                error: str | None = None
-            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
-                error = str(e)
-            GLib.idle_add(self._on_mount_done, remote_name, mount_dir, error)
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _on_mount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
-        if error is not None:
-            self._on_status_message(f"Mount failed: {error}")
-            return False
-
-        self._mount_dirs[remote_name] = mount_dir
-        self._on_status_message(f"Mounted {remote_name} at {mount_dir}")
-        return False
-
-    def _run_unmount(self, remote_name: str, mount_dir: str, dialog: Adw.Dialog) -> None:
-        if not mount_dir:
-            self._on_status_message("Mount folder is required")
-            return
-        dialog.close()
-        self._on_status_message("Unmounting...")
-
-        def worker() -> None:
-            try:
-                rclone.unmount_remote(mount_dir)
-                error: str | None = None
-            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
-                error = str(e)
-            GLib.idle_add(self._on_unmount_done, remote_name, mount_dir, error)
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _on_unmount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
-        if error is not None:
-            self._on_status_message(f"Unmount failed: {error}")
-            return False
-
-        self._mount_dirs.pop(remote_name, None)
-        self._on_status_message(f"Unmounted {mount_dir}")
-        return False
-
     def _run_sync(
         self,
         remote_name: str,
@@ -359,7 +429,7 @@ class RemotesPage(Gtk.Box):
             self._on_status_message("Local folder is required")
             return
         dialog.close()
-        self._on_status_message("Starting sync...")
+        self._on_status_message("Starting sync…")
 
         def worker() -> None:
             try:
@@ -374,3 +444,54 @@ class RemotesPage(Gtk.Box):
             GLib.idle_add(self._on_status_message, message)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    # ── edit ─────────────────────────────────────────────────────────────────
+
+    def _open_edit_dialog(self, remote: dict) -> None:
+        dialog = EditRemoteDialog(
+            remote=remote,
+            on_remote_updated=self._on_remote_updated,
+        )
+        dialog.present(self.get_root())
+
+    def _on_remote_updated(self, name: str) -> None:
+        self._on_status_message(f"Updated {name}")
+
+    # ── delete ────────────────────────────────────────────────────────────────
+
+    def _confirm_delete(self, remote: dict) -> None:
+        name = remote["name"]
+        alert = Adw.AlertDialog(
+            heading=f"Delete “{name}”?",
+            body="This removes the connection from Gazan and rclone. It does not delete any files.",
+        )
+        alert.add_response("cancel", "Cancel")
+        alert.add_response("delete", "Delete")
+        alert.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        alert.set_default_response("cancel")
+        alert.set_close_response("cancel")
+        alert.connect("response", self._on_delete_response, remote)
+        alert.present(self.get_root())
+
+    def _on_delete_response(self, _alert: Adw.AlertDialog, response: str, remote: dict) -> None:
+        if response != "delete":
+            return
+        self._on_status_message(f"Deleting {remote['name']}…")
+
+        def worker() -> None:
+            try:
+                rclone.delete_remote(remote["name"])
+                error: str | None = None
+            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                error = str(e)
+            GLib.idle_add(self._on_delete_done, remote["name"], error)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_delete_done(self, name: str, error: str | None) -> bool:
+        if error is not None:
+            self._on_status_message(f"Delete failed: {error}")
+            return False
+        self._on_status_message(f"Deleted {name}")
+        self.refresh()
+        return False
