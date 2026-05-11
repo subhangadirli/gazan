@@ -1,7 +1,83 @@
+import json
+import re
 import subprocess
+import threading
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 RCLONE_BIN = "rclone"
+
+
+@dataclass
+class TransferProgress:
+    percent: int    # 0-100, or -1 if unknown
+    speed: str      # e.g. "10.1 MiB/s"
+    eta: str        # e.g. "6m10s"
+    files_done: int
+    files_total: int
+
+
+# Matches the bytes-transferred stats line (contains "/s, ETA")
+_BYTES_RE = re.compile(
+    r"Transferred:\s+[\d.]+\s+\S+\s*/\s+[\d.]+\s+\S+,"
+    r"\s*(-|\d+)%,"
+    r"\s*([\d.]+\s+\S+/s),"
+    r"\s*ETA\s+(\S+)"
+)
+# Matches the file-count stats line (plain integers, no unit suffix)
+_FILES_RE = re.compile(r"Transferred:\s+(\d+)\s*/\s*(\d+),")
+
+
+def _parse_stats_msg(msg: str) -> TransferProgress | None:
+    m = _BYTES_RE.search(msg)
+    if m is None:
+        return None
+    percent = int(m.group(1)) if m.group(1) != "-" else -1
+    speed = m.group(2)
+    eta = m.group(3) if m.group(3) != "-" else ""
+    files_done = files_total = 0
+    fm = _FILES_RE.search(msg)
+    if fm:
+        files_done = int(fm.group(1))
+        files_total = int(fm.group(2))
+    return TransferProgress(percent, speed, eta, files_done, files_total)
+
+
+def start_sync_live(
+    src: str,
+    dst: str,
+    on_progress: Callable[[TransferProgress], None],
+    on_done: Callable[[str | None], None],
+) -> subprocess.Popen:
+    proc = subprocess.Popen(
+        [
+            RCLONE_BIN, "sync", src, dst,
+            "--use-json-log", "--stats", "0.5s",
+            "--stats-log-level", "NOTICE", "--log-level", "NOTICE",
+        ],
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    def _reader() -> None:
+        for raw in proc.stderr:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                data = json.loads(raw)
+                progress = _parse_stats_msg(data.get("msg", ""))
+                if progress is not None:
+                    on_progress(progress)
+            except (json.JSONDecodeError, ValueError):
+                pass
+        proc.wait()
+        error = None if proc.returncode == 0 else f"rclone exited with code {proc.returncode}"
+        on_done(error)
+
+    threading.Thread(target=_reader, daemon=True).start()
+    return proc
 
 
 class RcloneNotFoundError(Exception):

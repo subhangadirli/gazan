@@ -11,7 +11,9 @@ from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from gazan.ui import icons  # noqa: E402
 from gazan.ui.edit_remote_dialog import EditRemoteDialog  # noqa: E402
+from gazan.ui.transfer_panel import TransferPanel  # noqa: E402
 from gazan.backend import rclone  # noqa: E402
+from gazan.backend import config as gazan_config  # noqa: E402
 from gazan.backend.providers import find_provider  # noqa: E402
 
 
@@ -62,6 +64,9 @@ class RemotesPage(Gtk.Box):
         self._list_group = Adw.PreferencesGroup(title="Cloud storage")
         self._list_page.add(self._list_group)
         self._stack.add_named(self._list_page, "list")
+
+        self._transfer_panel = TransferPanel()
+        self.append(self._transfer_panel)
 
         self._mount_dirs = rclone.list_active_mounts()
         self._stack.set_visible_child_name("loading")
@@ -265,7 +270,7 @@ class RemotesPage(Gtk.Box):
         if mount_dir is None:
             mount_dir = rclone.list_active_mounts().get(
                 remote_name,
-                self._default_mount_dir(remote_name),
+                self._default_dir(remote_name),
             )
         path = Path(mount_dir).expanduser()
         if not path.exists():
@@ -276,9 +281,8 @@ class RemotesPage(Gtk.Box):
         except GLib.Error as e:
             self._on_status_message(f"Couldn't open folder: {e.message}")
 
-    def _default_mount_dir(self, remote_name: str) -> str:
-        safe_name = remote_name.replace("/", "-")
-        return str(Path("~/Cloud").expanduser() / safe_name)
+    def _default_dir(self, remote_name: str) -> str:
+        return gazan_config.remote_dir(remote_name)
 
     # ── mount ────────────────────────────────────────────────────────────────
 
@@ -299,7 +303,7 @@ class RemotesPage(Gtk.Box):
             description="Mounted folders can be opened from Nautilus, Thunar, and other file managers.",
         )
         mount_dir = Adw.EntryRow(title="Mount folder")
-        mount_dir.set_text(self._default_mount_dir(remote["name"]))
+        mount_dir.set_text(self._default_dir(remote["name"]))
         group.add(mount_dir)
 
         clamp = Adw.Clamp(maximum_size=560, margin_top=12, margin_bottom=12)
@@ -363,7 +367,7 @@ class RemotesPage(Gtk.Box):
                 remote["name"],
                 rclone.list_active_mounts().get(
                     remote["name"],
-                    self._default_mount_dir(remote["name"]),
+                    self._default_dir(remote["name"]),
                 ),
             )
         )
@@ -430,7 +434,7 @@ class RemotesPage(Gtk.Box):
         direction.set_selected(0)
 
         local_dir = Adw.EntryRow(title="Local folder")
-        local_dir.set_text(str(Path("~").expanduser()))
+        local_dir.set_text(self._default_dir(remote["name"]))
 
         remote_path = Adw.EntryRow(title="Remote path (optional)")
         remote_path.set_text("")
@@ -468,21 +472,32 @@ class RemotesPage(Gtk.Box):
             self._on_status_message("Local folder is required")
             return
         dialog.close()
-        self._on_status_message("Starting sync…")
 
-        def worker() -> None:
-            try:
-                if upload:
-                    rclone.sync_to_remote(local_dir, remote_name, remote_path)
-                    message = f"Uploaded {local_dir} to {remote_name}:{remote_path or '/'}"
-                else:
-                    rclone.sync_from_remote(remote_name, local_dir, remote_path)
-                    message = f"Downloaded {remote_name}:{remote_path or '/'} to {local_dir}"
-            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
-                message = f"Sync failed: {e}"
-            GLib.idle_add(self._on_status_message, message)
+        local_path = Path(local_dir).expanduser()
+        remote_spec = f"{remote_name}:{remote_path.lstrip('/')}"
 
-        threading.Thread(target=worker, daemon=True).start()
+        local_path.mkdir(parents=True, exist_ok=True)
+        if upload:
+            src, dst = str(local_path), remote_spec
+        else:
+            src, dst = remote_spec, str(local_path)
+
+        direction = "upload" if upload else "download"
+        proc = rclone.start_sync_live(
+            src=src,
+            dst=dst,
+            on_progress=lambda p: GLib.idle_add(self._transfer_panel.update, p),
+            on_done=lambda err: GLib.idle_add(self._on_sync_done, remote_name, err),
+        )
+        self._transfer_panel.start(remote_name, direction, proc)
+
+    def _on_sync_done(self, remote_name: str, error: str | None) -> bool:
+        self._transfer_panel.finish(error)
+        if error is None:
+            self._on_status_message(f"Sync complete: {remote_name}")
+        else:
+            self._on_status_message(f"Sync failed: {error}")
+        return False
 
     # ── edit ─────────────────────────────────────────────────────────────────
 
