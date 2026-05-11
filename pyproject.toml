@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gazan"
 version = "0.1.1"
-description = "A graphical frontend for rclone built with GTK 4 and libadwaita"
+description = "Browse, upload, download and manage cloud files"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10"

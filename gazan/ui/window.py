@@ -66,7 +66,7 @@ class GazanWindow(Adw.ApplicationWindow):
             issue_url="https://codeberg.org/subhangadirli/gazan/issues",
             license_type=Gtk.License.GPL_3_0,
             copyright="© 2024 Subhan Gadirli",
-            comments="A graphical frontend for rclone",
+            comments="Browse, upload, download and manage cloud files",
             developers=["Subhan Gadirli https://codeberg.org/subhangadirli"],
         )
         dialog.present(self)

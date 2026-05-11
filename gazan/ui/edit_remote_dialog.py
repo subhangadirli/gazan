@@ -21,6 +21,7 @@ class EditRemoteDialog(Adw.Dialog):
         super().__init__()
         self.set_title(f"Edit {remote['name']}")
         self.set_content_width(540)
+        self.set_content_height(400)
 
         self._remote = remote
         self._on_remote_updated = on_remote_updated
