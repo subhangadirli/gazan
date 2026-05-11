@@ -374,7 +374,17 @@ class AddRemoteDialog(Adw.Dialog):
         return Adw.NavigationPage(child=toolbar, title="Name")
 
     def _suggest_name(self, provider: Provider) -> str:
-        base = provider.rclone_type
+        for key in ("username", "user", "email"):
+            value = self._field_values.get(key, "").strip()
+            if value and value not in self._existing_names:
+                return value
+            if value and value in self._existing_names:
+                # fall through to numbered fallback below using the email as base
+                base = value
+                break
+        else:
+            base = provider.rclone_type
+
         if base not in self._existing_names:
             return base
         i = 2
