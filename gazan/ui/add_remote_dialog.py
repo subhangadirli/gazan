@@ -217,6 +217,67 @@ class AddRemoteDialog(Adw.Dialog):
         header.pack_end(next_button)
         toolbar.add_top_bar(header)
 
+        # If provider has no credential fields (terminal-style auth), show
+        # a helpful instruction page instead of an empty form.
+        if not provider.fields:
+            title = f"{provider.display_name}"
+            description = (
+                "This provider uses rclone's terminal-based setup. "
+                "Follow the instructions to configure it and then return to Gazan."
+            )
+
+            status = Adw.StatusPage(
+                icon_name="preferences-system-symbolic",
+                title=title,
+                description=description,
+            )
+
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            box.append(status)
+
+            instr = Gtk.Label(
+                label=(
+                    "To configure this remote: open a terminal and run:\n\n"
+                    "    rclone config\n\n"
+                    "Follow the interactive prompts to create the remote.\n\n"
+                    "After creating it in rclone, return here and it will appear in the list."
+                ),
+                wrap=True,
+                justify=Gtk.Justification.LEFT,
+            )
+            instr.set_margin_start(24)
+            instr.set_margin_end(24)
+            instr.add_css_class("dim-label")
+            box.append(instr)
+
+            help_button = Gtk.Button(label="Show setup instructions")
+            help_button.add_css_class("pill")
+            help_button.set_halign(Gtk.Align.CENTER)
+            help_button.connect(
+                "clicked",
+                lambda _b: self._show_error(
+                    "Setup instructions",
+                    (
+                        "1) Open a terminal and run: rclone config\n"
+                        "2) Create a new remote and give it a name\n"
+                        "3) Return to Gazan and refresh the remote list"
+                    ),
+                ),
+            )
+            box.append(help_button)
+
+            clamp = Adw.Clamp(
+                maximum_size=520,
+                margin_top=12,
+                margin_bottom=12,
+                margin_start=12,
+                margin_end=12,
+            )
+            clamp.set_child(box)
+
+            toolbar.set_content(clamp)
+            return Adw.NavigationPage(child=toolbar, title="Account details")
+
         group = Adw.PreferencesGroup(
             title=provider.display_name,
             description="Enter your account details",

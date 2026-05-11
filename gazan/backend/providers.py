@@ -22,6 +22,28 @@ class Provider:
 
 PROVIDERS: list[Provider] = [
     Provider(
+        rclone_type="webdav",
+        display_name="Nextcloud",
+        icon_file="nextcloud.svg",
+        auth_kind="credentials",
+        fields=[
+            ProviderField("url", "Server URL", "text", placeholder="https://your.nextcloud.instance/remote.php/webdav"),
+            ProviderField("vendor", "Server type", "choice", choices=[("nextcloud", "Nextcloud")]),
+            ProviderField("user", "Username", "text"),
+            ProviderField("pass", "Password", "password"),
+        ],
+    ),
+    Provider(
+        rclone_type="protondrive",
+        display_name="Proton Drive",
+        icon_file="proton-drive.svg",
+        auth_kind="credentials",
+        fields=[
+            ProviderField("username", "Email", "text", placeholder="you@proton.me"),
+            ProviderField("password", "Password", "password"),
+        ],
+    ),
+    Provider(
         rclone_type="drive",
         display_name="Google Drive",
         icon_file="google-drive.svg",
@@ -38,16 +60,6 @@ PROVIDERS: list[Provider] = [
         display_name="OneDrive",
         icon_file="microsoft-onedrive.svg",
         auth_kind="oauth",
-    ),
-    Provider(
-        rclone_type="protondrive",
-        display_name="Proton Drive",
-        icon_file="proton-drive.svg",
-        auth_kind="credentials",
-        fields=[
-            ProviderField("username", "Email", "text", placeholder="you@proton.me"),
-            ProviderField("password", "Password", "password"),
-        ],
     ),
     Provider(
         rclone_type="s3",
@@ -110,6 +122,42 @@ PROVIDERS: list[Provider] = [
                     ("other", "Other"),
                 ],
             ),
+            ProviderField("user", "Username", "text"),
+            ProviderField("pass", "Password", "password"),
+        ],
+    ),
+    Provider(
+        rclone_type="webdav",
+        display_name="Nextcloud",
+        icon_file="nextcloud.svg",
+        auth_kind="credentials",
+        fields=[
+            ProviderField("url", "Server URL", "text", placeholder="https://your.nextcloud.instance/remote.php/webdav"),
+            ProviderField("vendor", "Server type", "choice", choices=[("nextcloud", "Nextcloud")]),
+            ProviderField("user", "Username", "text"),
+            ProviderField("pass", "Password", "password"),
+        ],
+    ),
+    Provider(
+        rclone_type="webdav",
+        display_name="ownCloud",
+        icon_file="owncloud.svg",
+        auth_kind="credentials",
+        fields=[
+            ProviderField("url", "Server URL", "text", placeholder="https://your.owncloud.instance/remote.php/webdav"),
+            ProviderField("vendor", "Server type", "choice", choices=[("owncloud", "ownCloud")]),
+            ProviderField("user", "Username", "text"),
+            ProviderField("pass", "Password", "password"),
+        ],
+    ),
+    Provider(
+        rclone_type="webdav",
+        display_name="SharePoint",
+        icon_file="microsoft-sharepoint.svg",
+        auth_kind="credentials",
+        fields=[
+            ProviderField("url", "Server URL", "text", placeholder="https://your.sharepoint.site/sites/your-site/_layouts/15/sharepoint.aspx"),
+            ProviderField("vendor", "Server type", "choice", choices=[("sharepoint", "SharePoint")]),
             ProviderField("user", "Username", "text"),
             ProviderField("pass", "Password", "password"),
         ],
