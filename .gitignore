@@ -15,6 +15,7 @@ env/
 *.egg-info/
 dist/
 build/
+MANIFEST
 
 # Tests / coverage
 .pytest_cache/
@@ -24,13 +25,15 @@ htmlcov/
 # Type checkers
 .mypy_cache/
 .pyre/
+.ruff_cache/
 
-# GNOME / Meson / Flatpak
+# Flatpak
 _build/
+build-dir/
 .flatpak-builder/
-flatpak-build/
 repo/
 *.flatpak
+*.flatpak-builder/
 
 # IDE
 .vscode/

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Gazan
+Comment=Browse, upload, download and manage cloud files
+Exec=gazan
+Icon=io.codeberg.subhagadirli.Gazan
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;Network;FileTransfer;
+Keywords=cloud;rclone;files;gdrive;onedrive;dropbox;
+StartupNotify=true
+StartupWMClass=gazan

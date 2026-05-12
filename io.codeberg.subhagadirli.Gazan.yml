@@ -1,0 +1,58 @@
+app-id: io.codeberg.subhagadirli.Gazan
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.python3
+command: gazan
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=home
+  - --filesystem=~/.config/rclone
+  - --talk-name=org.freedesktop.portal.OpenURI
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/python3/bin
+  env:
+    PIP_PREFIX: /app
+    PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+modules:
+  - name: rclone
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 rclone /app/bin/rclone
+    sources:
+      - type: archive
+        url: https://github.com/rclone/rclone/releases/download/v1.74.1/rclone-v1.74.1-linux-amd64.zip
+        sha256: 67df3059a6233b6e32e604bcd637654bb294ff86291b65ede77123e94818d911
+        strip-components: 1
+
+  - name: PyGObject
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-index --find-links=. PyGObject
+    sources:
+      - type: shell
+        commands:
+          - pip3 download PyGObject --no-deps -d .
+
+  - name: gazan
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps .
+      - install -Dm644 io.codeberg.subhagadirli.Gazan.desktop /app/share/applications/io.codeberg.subhagadirli.Gazan.desktop
+      - install -Dm644 io.codeberg.subhagadirli.Gazan.metainfo.xml /app/share/metainfo/io.codeberg.subhagadirli.Gazan.metainfo.xml
+      - install -Dm644 gazan/assets/hicolor/scalable/apps/gazan.svg /app/share/icons/hicolor/scalable/apps/io.codeberg.subhagadirli.Gazan.svg
+      - install -Dm644 gazan/assets/hicolor/128x128/apps/gazan.png /app/share/icons/hicolor/128x128/apps/io.codeberg.subhagadirli.Gazan.png
+      - install -Dm644 gazan/assets/hicolor/256x256/apps/gazan.png /app/share/icons/hicolor/256x256/apps/io.codeberg.subhagadirli.Gazan.png
+      - install -Dm644 gazan/assets/hicolor/512x512/apps/gazan.png /app/share/icons/hicolor/512x512/apps/io.codeberg.subhagadirli.Gazan.png
+    sources:
+      - type: dir
+        path: .
