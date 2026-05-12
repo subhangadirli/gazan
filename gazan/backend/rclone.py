@@ -162,6 +162,18 @@ def sync_from_remote(remote_name: str, local_dir: str, remote_path: str = "") ->
     _run_checked([RCLONE_BIN, "sync", src, dst])
 
 
+def authorize_remote(remote_type: str) -> str:
+    """Run rclone authorize for OAuth providers. Opens the browser and blocks until done."""
+    result = _run([RCLONE_BIN, "authorize", remote_type])
+    if result.returncode != 0:
+        raise RcloneError(result.stderr.strip() or "Authorization failed")
+    combined = result.stdout + "\n" + result.stderr
+    m = re.search(r"--->\n({.+?})\n<---", combined, re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    raise RcloneError("Could not read authorization token from rclone output")
+
+
 def delete_remote(name: str) -> None:
     _run_checked([RCLONE_BIN, "config", "delete", name])
 

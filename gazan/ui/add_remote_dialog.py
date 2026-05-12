@@ -171,17 +171,6 @@ class AddRemoteDialog(Adw.Dialog):
 
         threading.Thread(target=worker, daemon=True).start()
 
-        def worker() -> None:
-            try:
-                token = rclone.exchange_google_drive_code(code)
-                error: str | None = None
-            except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
-                token = ""
-                error = str(e)
-            GLib.idle_add(self._on_oauth_ready, self._selected_provider, token, error)
-
-        threading.Thread(target=worker, daemon=True).start()
-
     def _on_oauth_ready(
         self,
         provider: Provider | None,
