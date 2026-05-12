@@ -9,7 +9,7 @@ finish-args:
   - --share=ipc
   - --socket=fallback-x11
   - --socket=wayland
-  - --device=all
+  - --device=dri
   - --filesystem=home
   - --filesystem=~/.config/rclone
   - --talk-name=org.freedesktop.portal.OpenURI

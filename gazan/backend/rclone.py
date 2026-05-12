@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 import threading
@@ -7,6 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 RCLONE_BIN = "rclone"
+
+
+def is_flatpak() -> bool:
+    return os.path.exists("/.flatpak-info")
 
 
 @dataclass
@@ -131,19 +136,11 @@ def _run_checked(args: list[str]) -> None:
 def mount_remote(remote_name: str, mount_dir: str) -> subprocess.Popen:
     mount_path = Path(mount_dir).expanduser()
     mount_path.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(
-        [
-            RCLONE_BIN,
-            "mount",
-            f"{remote_name}:",
-            str(mount_path),
-            "--vfs-cache-mode", "full",
-            "--log-level", "ERROR",
-        ],
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    # Give rclone a moment to fail fast if FUSE is unavailable
+    cmd = [
+        RCLONE_BIN, "mount", f"{remote_name}:", str(mount_path),
+        "--vfs-cache-mode", "full", "--log-level", "ERROR",
+    ]
+    proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True)
     import time
     time.sleep(1.5)
     if proc.poll() is not None:
@@ -160,7 +157,7 @@ def unmount_remote(mount_dir: str, proc: subprocess.Popen | None = None) -> None
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-    else:
+    elif proc is None:
         _run_checked(["fusermount3", "-u", mount_path])
 
 

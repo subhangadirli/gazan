@@ -7,7 +7,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk  # noqa: E402
 
 _APP_ID = "io.codeberg.subhagadirli.Gazan"
 
@@ -184,7 +184,10 @@ class RemotesPage(Gtk.Box):
         mount_button.set_tooltip_text("Mount")
         mount_button.add_css_class("flat")
         mount_button.set_visible(not is_mounted)
-        mount_button.connect("clicked", lambda _b: self._open_mount_dialog(remote))
+        if rclone.is_flatpak():
+            mount_button.connect("clicked", lambda _b: self._open_flatpak_mount_info(remote))
+        else:
+            mount_button.connect("clicked", lambda _b: self._open_mount_dialog(remote))
 
         unmount_button = Gtk.Button(icon_name="media-eject-symbolic")
         unmount_button.set_tooltip_text("Unmount")
@@ -288,6 +291,70 @@ class RemotesPage(Gtk.Box):
         return gazan_config.remote_dir(remote_name)
 
     # ── mount ────────────────────────────────────────────────────────────────
+
+    def _open_flatpak_mount_info(self, remote: dict) -> None:
+        name = remote["name"]
+        mount_dir = self._default_dir(name)
+        command = f"rclone mount {name}: {mount_dir} --vfs-cache-mode writes"
+
+        dialog = Adw.Dialog()
+        dialog.set_title("Mounting not available")
+        dialog.set_content_width(520)
+
+        toolbar = Adw.ToolbarView()
+        toolbar.add_top_bar(Adw.HeaderBar())
+
+        body_label = Gtk.Label(
+            label=(
+                "Mounting is not available in the Flatpak version due to sandbox restrictions.\n\n"
+                "To use this feature, install rclone on your system and run the following "
+                "command in a terminal:"
+            ),
+            wrap=True,
+            justify=Gtk.Justification.LEFT,
+        )
+        body_label.set_halign(Gtk.Align.START)
+
+        cmd_label = Gtk.Label(label=command, selectable=True, wrap=True)
+        cmd_label.set_halign(Gtk.Align.START)
+        cmd_label.add_css_class("monospace")
+        cmd_frame = Gtk.Frame()
+        cmd_frame.set_child(cmd_label)
+        cmd_label.set_margin_top(8)
+        cmd_label.set_margin_bottom(8)
+        cmd_label.set_margin_start(8)
+        cmd_label.set_margin_end(8)
+
+        copy_button = Gtk.Button(label="Copy Command")
+        copy_button.add_css_class("pill")
+        copy_button.set_halign(Gtk.Align.CENTER)
+
+        def _copy(_b: Gtk.Button) -> None:
+            clipboard = Gdk.Display.get_default().get_clipboard()
+            clipboard.set_content(
+                Gdk.ContentProvider.new_for_value(
+                    GObject.Value(GObject.TYPE_STRING, command)
+                )
+            )
+            copy_button.set_label("Copied!")
+            GLib.timeout_add(1500, lambda: copy_button.set_label("Copy Command") or False)
+
+        copy_button.connect("clicked", _copy)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+        box.append(body_label)
+        box.append(cmd_frame)
+        box.append(copy_button)
+
+        clamp = Adw.Clamp(maximum_size=520)
+        clamp.set_child(box)
+        toolbar.set_content(clamp)
+        dialog.set_child(toolbar)
+        dialog.present(self.get_root())
 
     def _open_mount_dialog(self, remote: dict) -> None:
         dialog = Adw.Dialog()
