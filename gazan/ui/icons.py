@@ -17,11 +17,11 @@ def _load_image(icon_file: str, size: int) -> Gtk.Widget | None:
         return None
     try:
         if path.suffix.lower() == ".svg":
-            img = Gtk.Image.new_from_file(str(path))
-            img.set_pixel_size(size)
-            return img
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(str(path), size, size)
-        texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+            # new_from_filename raises GLib.Error on failure unlike new_from_file
+            texture = Gdk.Texture.new_from_filename(str(path))
+        else:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(str(path), size, size)
+            texture = Gdk.Texture.new_for_pixbuf(pixbuf)
         img = Gtk.Image.new_from_paintable(texture)
         img.set_pixel_size(size)
         return img

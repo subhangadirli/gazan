@@ -167,14 +167,15 @@ class RemotesPage(Gtk.Box):
         is_mounted = name in self._mount_dirs
 
         # Mount status icon (shown when mounted)
-        badge = Gtk.Image(icon_name="emblem-ok-symbolic")
+        badge = Gtk.Image.new_from_icon_name("object-select-symbolic")
         badge.add_css_class("success")
         badge.set_tooltip_text("Mounted")
         badge.set_pixel_size(16)
         badge.set_margin_end(4)
         badge.set_visible(is_mounted)
 
-        open_button = Gtk.Button(icon_name="folder-open-symbolic")
+        open_button = Gtk.Button()
+        open_button.set_child(Gtk.Image.new_from_icon_name("document-open-symbolic"))
         open_button.set_tooltip_text("Open mounted folder")
         open_button.add_css_class("flat")
         open_button.set_visible(is_mounted)
