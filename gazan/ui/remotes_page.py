@@ -175,7 +175,8 @@ class RemotesPage(Gtk.Box):
         badge.set_visible(is_mounted)
 
         open_button = Gtk.Button()
-        open_button.set_child(Gtk.Image.new_from_icon_name("document-open-symbolic"))
+        open_icon = "folder-symbolic" if rclone.is_flatpak() else "folder-open-symbolic"
+        open_button.set_child(Gtk.Image.new_from_icon_name(open_icon))
         open_button.set_tooltip_text("Open mounted folder")
         open_button.add_css_class("flat")
         open_button.set_visible(is_mounted)
