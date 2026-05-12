@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import signal
 import subprocess
 import threading
 from collections.abc import Callable
@@ -115,6 +116,39 @@ def list_remotes() -> list[dict]:
     return remotes
 
 
+def _get_config_path() -> Path:
+    result = _run([RCLONE_BIN, "config", "file"])
+    if result.returncode != 0:
+        raise RcloneError("Could not determine rclone config file path")
+    for line in result.stdout.strip().splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.lower().startswith("configuration"):
+            return Path(stripped)
+    raise RcloneError("Could not parse rclone config file path")
+
+
+def create_remote_oauth(name: str, remote_type: str, token: str) -> None:
+    """Write an OAuth remote directly to the config file.
+
+    Avoids rclone config create, which starts a token-refresh webserver on
+    port 53682 and conflicts with the just-completed rclone authorize session.
+    """
+    import configparser
+    config_path = _get_config_path()
+    config = configparser.RawConfigParser()
+    config.optionxform = str  # preserve key case
+    if config_path.exists():
+        config.read(config_path, encoding="utf-8")
+    if config.has_section(name):
+        config.remove_section(name)
+    config.add_section(name)
+    config.set(name, "type", remote_type)
+    config.set(name, "token", token)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_path, "w", encoding="utf-8") as f:
+        config.write(f)
+
+
 def create_remote(name: str, remote_type: str, params: dict[str, str]) -> None:
     args = [RCLONE_BIN, "config", "create", name, remote_type, "--obscure"]
     for key, value in params.items():
@@ -174,16 +208,78 @@ def sync_from_remote(remote_name: str, local_dir: str, remote_path: str = "") ->
     _run_checked([RCLONE_BIN, "sync", src, dst])
 
 
-def authorize_remote(remote_type: str) -> str:
-    """Run rclone authorize for OAuth providers. Opens the browser and blocks until done."""
-    result = _run([RCLONE_BIN, "authorize", remote_type])
-    if result.returncode != 0:
-        raise RcloneError(result.stderr.strip() or "Authorization failed")
-    combined = result.stdout + "\n" + result.stderr
-    m = re.search(r"--->\n({.+?})\n<---", combined, re.DOTALL)
-    if m:
-        return m.group(1).strip()
-    raise RcloneError("Could not read authorization token from rclone output")
+def kill_oauth_proc(proc: subprocess.Popen) -> None:
+    """Kill the process group (including any child webservers).
+
+    Uses proc.pid directly as the PGID — valid because authorize_remote starts
+    the process with start_new_session=True, making PGID == PID. This works even
+    after communicate() has reaped the parent, as long as children are still alive.
+    """
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except OSError:
+        pass
+
+
+def _free_oauth_port(port: int = 53682) -> None:
+    """Kill any process listening on the rclone OAuth callback port."""
+    try:
+        result = subprocess.run(
+            ["ss", "-tlnpH", f"sport = :{port}"],
+            capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return
+    for m in re.finditer(r"pid=(\d+)", result.stdout):
+        try:
+            os.kill(int(m.group(1)), signal.SIGKILL)
+        except OSError:
+            pass
+
+
+def authorize_remote(remote_type: str) -> tuple[subprocess.Popen, str]:
+    """Run rclone authorize for OAuth providers. Opens the browser and blocks until done.
+
+    Returns (proc, token). The caller should use kill_oauth_proc(proc) to clean up
+    if authorization is cancelled, as rclone may spawn child processes.
+
+    Uses an isolated empty config so rclone doesn't try to refresh existing remotes'
+    tokens during the new OAuth flow (which would conflict on port 53682).
+    """
+    _free_oauth_port()
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".conf", delete=False)
+    tmp.close()
+    isolated_config = tmp.name
+    try:
+        try:
+            proc = subprocess.Popen(
+                [RCLONE_BIN, "--config", isolated_config, "authorize", remote_type],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,
+            )
+        except FileNotFoundError as e:
+            raise RcloneNotFoundError(
+                f"rclone binary not found (looked for '{RCLONE_BIN}')"
+            ) from e
+        stdout, stderr = proc.communicate()
+        # Kill the entire process group to clean up any child processes rclone may
+        # have spawned (e.g. the OAuth callback webserver) that outlive the parent.
+        kill_oauth_proc(proc)
+        if proc.returncode != 0:
+            raise RcloneError(stderr.strip() or "Authorization failed")
+        combined = stdout + "\n" + stderr
+        m = re.search(r"--->\n({.+?})\n<---", combined, re.DOTALL)
+        if m:
+            return proc, m.group(1).strip()
+        raise RcloneError("Could not read authorization token from rclone output")
+    finally:
+        try:
+            os.unlink(isolated_config)
+        except OSError:
+            pass
 
 
 def delete_remote(name: str) -> None:

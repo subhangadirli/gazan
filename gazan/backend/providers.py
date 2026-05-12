@@ -18,6 +18,7 @@ class Provider:
     icon_file: str | None        # filename in assets/provider-logos/, or None
     auth_kind: str
     fields: list[ProviderField] = field(default_factory=list)
+    show_intro: bool = False     # show instructional page before starting OAuth
 
 
 PROVIDERS: list[Provider] = [
@@ -35,19 +36,22 @@ PROVIDERS: list[Provider] = [
         rclone_type="drive",
         display_name="Google Drive",
         icon_file="google-drive.svg",
-        auth_kind="terminal",
+        auth_kind="oauth",
+        show_intro=True,
     ),
     Provider(
         rclone_type="dropbox",
         display_name="Dropbox",
         icon_file="dropbox.svg",
         auth_kind="oauth",
+        show_intro=True,
     ),
     Provider(
         rclone_type="onedrive",
         display_name="OneDrive",
         icon_file="microsoft-onedrive.svg",
         auth_kind="oauth",
+        show_intro=True,
     ),
     Provider(
         rclone_type="s3",

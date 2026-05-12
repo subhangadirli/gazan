@@ -1,3 +1,4 @@
+import subprocess
 import threading
 from collections.abc import Callable
 
@@ -31,6 +32,7 @@ class AddRemoteDialog(Adw.Dialog):
         self._field_values: dict[str, str] = {}
         self._oauth_token: str | None = None
         self._closed = False
+        self._oauth_proc: subprocess.Popen | None = None
         self._oauth_status_label: Gtk.Label | None = None
         self._oauth_button: Gtk.Button | None = None
 
@@ -42,6 +44,8 @@ class AddRemoteDialog(Adw.Dialog):
 
     def _on_dialog_closed(self, _dialog: Adw.Dialog) -> None:
         self._closed = True
+        if self._oauth_proc is not None:
+            rclone.kill_oauth_proc(self._oauth_proc)
 
     def _build_provider_page(self) -> Adw.NavigationPage:
         toolbar = Adw.ToolbarView()
@@ -98,7 +102,7 @@ class AddRemoteDialog(Adw.Dialog):
 
     def _on_provider_selected(self, _button: Gtk.Button, provider: Provider) -> None:
         self._selected_provider = provider
-        if provider.auth_kind == "oauth":
+        if provider.auth_kind == "oauth" and not provider.show_intro:
             self._nav.push(self._build_oauth_page(provider))
             self._start_oauth_setup(provider)
         else:
@@ -153,6 +157,9 @@ class AddRemoteDialog(Adw.Dialog):
     def _start_oauth_setup(self, provider: Provider) -> None:
         assert provider.auth_kind == "oauth"
         self._oauth_token = None
+        if self._oauth_proc is not None:
+            rclone.kill_oauth_proc(self._oauth_proc)
+        self._oauth_proc = None
         if self._oauth_status_label is not None:
             self._oauth_status_label.set_text(
                 f"Opening the browser for {provider.display_name}…"
@@ -162,7 +169,8 @@ class AddRemoteDialog(Adw.Dialog):
 
         def worker() -> None:
             try:
-                token = rclone.authorize_remote(provider.rclone_type)
+                proc, token = rclone.authorize_remote(provider.rclone_type)
+                self._oauth_proc = proc
                 error: str | None = None
             except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
                 token = ""
@@ -221,8 +229,8 @@ class AddRemoteDialog(Adw.Dialog):
 
             desc_label = Gtk.Label(
                 label=(
-                    "Gazan will open your browser so you can sign in to your "
-                    "Google account and grant access."
+                    f"Gazan will open your browser so you can sign in to your "
+                    f"{provider.display_name} account and grant access."
                 ),
                 wrap=True,
                 justify=Gtk.Justification.CENTER,
@@ -238,11 +246,11 @@ class AddRemoteDialog(Adw.Dialog):
             help_button.set_margin_top(18)
             help_button.connect(
                 "clicked",
-                lambda _b: self._show_error(
+                lambda _b, p=provider: self._show_error(
                     "How sign-in works",
                     (
                         "1) Click Next to start\n"
-                        "2) Your browser will open for Google account sign-in\n"
+                        f"2) Your browser will open for {p.display_name} sign-in\n"
                         "3) After approving access, return here to name your connection"
                     ),
                 ),
@@ -263,7 +271,7 @@ class AddRemoteDialog(Adw.Dialog):
             clamp = Adw.Clamp(maximum_size=400)
             clamp.set_child(box)
             toolbar.set_content(clamp)
-            return Adw.NavigationPage(child=toolbar, title="Connect Google Drive")
+            return Adw.NavigationPage(child=toolbar, title=f"Connect {provider.display_name}")
 
         group = Adw.PreferencesGroup(
             title=provider.display_name,
@@ -323,7 +331,13 @@ class AddRemoteDialog(Adw.Dialog):
             self._show_error("Missing information", error)
             return
         self._field_values = values  # type: ignore[assignment]
-        self._nav.push(self._build_name_page())
+        provider = self._selected_provider
+        assert provider is not None
+        if provider.show_intro:
+            self._nav.push(self._build_oauth_page(provider))
+            self._start_oauth_setup(provider)
+        else:
+            self._nav.push(self._build_name_page())
 
     def _build_name_page(self) -> Adw.NavigationPage:
         toolbar = Adw.ToolbarView()
@@ -402,13 +416,27 @@ class AddRemoteDialog(Adw.Dialog):
         provider = self._selected_provider
         params = dict(self._field_values)
         assert provider is not None
+
         if provider.auth_kind == "oauth":
-            assert self._oauth_token is not None
-            params["token"] = self._oauth_token
+            if not self._oauth_token:
+                button.set_sensitive(True)
+                button.set_child(None)
+                button.set_label("Add")
+                self._show_error(
+                    "Sign-in incomplete",
+                    "The browser sign-in didn’t finish. Go back and try again.",
+                )
+                return
+            oauth_token: str | None = self._oauth_token
+        else:
+            oauth_token = None
 
         def worker() -> None:
             try:
-                rclone.create_remote(name, provider.rclone_type, params)
+                if oauth_token is not None:
+                    rclone.create_remote_oauth(name, provider.rclone_type, oauth_token)
+                else:
+                    rclone.create_remote(name, provider.rclone_type, params)
                 err: str | None = None
             except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
                 err = str(e)
