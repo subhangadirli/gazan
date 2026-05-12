@@ -8,7 +8,7 @@ from gi.repository import Adw, Gio, Gtk  # noqa: E402
 from gazan.ui.add_remote_dialog import AddRemoteDialog  # noqa: E402
 from gazan.ui.remotes_page import RemotesPage  # noqa: E402
 
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.2.0"
 APP_ID = "io.codeberg.subhagadirli.Gazan"
 
 
