@@ -209,63 +209,62 @@ class AddRemoteDialog(Adw.Dialog):
         # If provider has no credential fields (terminal-style auth), show
         # a helpful instruction page instead of an empty form.
         if not provider.fields:
-            title = f"{provider.display_name}"
-            description = (
-                "This provider uses rclone's terminal-based setup. "
-                "Follow the instructions to configure it and then return to Gazan."
-            )
+            icon = Gtk.Image.new_from_icon_name("preferences-system-symbolic")
+            icon.set_pixel_size(128)
+            icon.set_halign(Gtk.Align.CENTER)
+            icon.set_margin_bottom(18)
 
-            status = Adw.StatusPage(
-                icon_name="preferences-system-symbolic",
-                title=title,
-                description=description,
-            )
+            title_label = Gtk.Label(label=provider.display_name)
+            title_label.add_css_class("title-2")
+            title_label.set_halign(Gtk.Align.CENTER)
+            title_label.set_justify(Gtk.Justification.CENTER)
+            title_label.set_wrap(True)
 
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-            box.append(status)
-
-            instr = Gtk.Label(
+            desc_label = Gtk.Label(
                 label=(
-                    "To configure this remote: open a terminal and run:\n\n"
-                    "    rclone config\n\n"
-                    "Follow the interactive prompts to create the remote.\n\n"
-                    "After creating it in rclone, return here and it will appear in the list."
+                    "Gazan will open your browser so you can sign in to your "
+                    "Google account and grant access."
                 ),
                 wrap=True,
-                justify=Gtk.Justification.LEFT,
+                justify=Gtk.Justification.CENTER,
             )
-            instr.set_margin_start(24)
-            instr.set_margin_end(24)
-            instr.add_css_class("dim-label")
-            box.append(instr)
+            desc_label.add_css_class("dim-label")
+            desc_label.set_halign(Gtk.Align.CENTER)
+            desc_label.set_max_width_chars(48)
+            desc_label.set_margin_top(9)
 
-            help_button = Gtk.Button(label="Show setup instructions")
+            help_button = Gtk.Button(label="How does this work?")
             help_button.add_css_class("pill")
             help_button.set_halign(Gtk.Align.CENTER)
+            help_button.set_margin_top(18)
             help_button.connect(
                 "clicked",
                 lambda _b: self._show_error(
-                    "Setup instructions",
+                    "How sign-in works",
                     (
-                        "1) Open a terminal and run: rclone config\n"
-                        "2) Create a new remote and give it a name\n"
-                        "3) Return to Gazan and refresh the remote list"
+                        "1) Click Next to start\n"
+                        "2) Your browser will open for Google account sign-in\n"
+                        "3) After approving access, return here to name your connection"
                     ),
                 ),
             )
+
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            box.set_valign(Gtk.Align.CENTER)
+            box.set_vexpand(True)
+            box.set_margin_top(36)
+            box.set_margin_bottom(36)
+            box.set_margin_start(24)
+            box.set_margin_end(24)
+            box.append(icon)
+            box.append(title_label)
+            box.append(desc_label)
             box.append(help_button)
 
-            clamp = Adw.Clamp(
-                maximum_size=520,
-                margin_top=12,
-                margin_bottom=12,
-                margin_start=12,
-                margin_end=12,
-            )
+            clamp = Adw.Clamp(maximum_size=400)
             clamp.set_child(box)
-
             toolbar.set_content(clamp)
-            return Adw.NavigationPage(child=toolbar, title="Account details")
+            return Adw.NavigationPage(child=toolbar, title="Connect Google Drive")
 
         group = Adw.PreferencesGroup(
             title=provider.display_name,
