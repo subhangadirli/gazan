@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     { name = "Subhan Gadirli", email = "subhagadirli@protonmail.com" },
 ]
-contributors = [
+maintainers = [
     { name = "Agil Mammadov", email = "mammadovagil@tutamail.com" },
 ]
 keywords = ["rclone", "gtk4", "gnome", "cloud", "libadwaita", "files"]
