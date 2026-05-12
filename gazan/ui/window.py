@@ -69,6 +69,7 @@ class GazanWindow(Adw.ApplicationWindow):
             comments="Browse, upload, download and manage cloud files",
             developers=["Subhan Gadirli https://codeberg.org/subhangadirli"],
         )
+        dialog.add_credit_section("Contributors", ["Agil Mammadov https://codeberg.org/stiermid"])
         dialog.present(self)
 
     def _open_add_remote_dialog(self) -> None:
