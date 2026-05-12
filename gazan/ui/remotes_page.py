@@ -50,6 +50,7 @@ class RemotesPage(Gtk.Box):
         self._remotes: list[dict] = []
         self._rows: list[Adw.ActionRow] = []
         self._mount_dirs: dict[str, str] = {}
+        self._mount_procs: dict[str, object] = {}
         # per-row widget refs for live state updates
         self._row_widgets: dict[str, dict] = {}
 
@@ -328,20 +329,24 @@ class RemotesPage(Gtk.Box):
 
         def worker() -> None:
             try:
-                rclone.mount_remote(remote_name, mount_dir)
+                proc = rclone.mount_remote(remote_name, mount_dir)
                 error: str | None = None
             except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
+                proc = None
                 error = str(e)
-            GLib.idle_add(self._on_mount_done, remote_name, mount_dir, error)
+            GLib.idle_add(self._on_mount_done, remote_name, mount_dir, proc, error)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_mount_done(self, remote_name: str, mount_dir: str, error: str | None) -> bool:
+    def _on_mount_done(
+        self, remote_name: str, mount_dir: str, proc: object, error: str | None
+    ) -> bool:
         if error is not None:
             self._on_status_message(f"Mount failed: {error}")
             self._send_notification("Mount failed", f'"{remote_name}": {error}', error=True)
             return False
         self._mount_dirs[remote_name] = mount_dir
+        self._mount_procs[remote_name] = proc
         self._update_row_state(remote_name, is_mounted=True)
         self._on_status_message(f"Mounted {remote_name} at {mount_dir}")
         return False
@@ -393,10 +398,11 @@ class RemotesPage(Gtk.Box):
             return
         dialog.close()
         self._on_status_message("Unmounting…")
+        proc = self._mount_procs.get(remote_name)
 
         def worker() -> None:
             try:
-                rclone.unmount_remote(mount_dir)
+                rclone.unmount_remote(mount_dir, proc)
                 error: str | None = None
             except (rclone.RcloneError, rclone.RcloneNotFoundError) as e:
                 error = str(e)
@@ -409,6 +415,7 @@ class RemotesPage(Gtk.Box):
             self._on_status_message(f"Unmount failed: {error}")
             return False
         self._mount_dirs.pop(remote_name, None)
+        self._mount_procs.pop(remote_name, None)
         self._update_row_state(remote_name, is_mounted=False)
         self._on_status_message(f"Unmounted {mount_dir}")
         return False
