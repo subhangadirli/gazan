@@ -209,8 +209,7 @@ class AddRemoteDialog(Adw.Dialog):
         # If provider has no credential fields (terminal-style auth), show
         # a helpful instruction page instead of an empty form.
         if not provider.fields:
-            icon = Gtk.Image.new_from_icon_name("preferences-system-symbolic")
-            icon.set_pixel_size(128)
+            icon = icons.provider_picture(provider.icon_file, size=128)
             icon.set_halign(Gtk.Align.CENTER)
             icon.set_margin_bottom(18)
 

@@ -1,0 +1,11 @@
+venv/
+.venv/
+dist/
+build/
+build-dir/
+.flatpak-builder/
+repo/
+*.egg-info/
+__pycache__/
+*.pyc
+.git/
